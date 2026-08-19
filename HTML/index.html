@@ -2,9 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 强制横屏和禁止缩放 -->
+    <!-- 横屏、禁止缩放、禁止页面滑动 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>峡谷骑士大冒险</title>
+    <title>骑士大冒险</title>
     <style>
         body, html {
             margin: 0;
@@ -12,86 +12,82 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #333;
+            background-color: #000;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none; /* 禁止浏览器默认滑动 */
+            touch-action: none;
         }
         #gameCanvas {
             display: block;
             width: 100vw;
             height: 100vh;
-            background-color: #c49a6c; /* 沙漠底色 */
         }
-        
-        /* UI 头部显示 */
+
+        /* ------------------- 开始游戏遮罩层 ------------------- */
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            flex-direction: column;
+        }
+        #start-btn {
+            width: 200px;
+            height: 80px;
+            background-image: url('https://i.ibb.co/R4jpTj3W/mmexport1787145375744.jpg');
+            background-size: 100% 100%;
+            background-color: transparent;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        #start-btn:active { transform: scale(0.9); }
+
+        /* ------------------- UI 头顶显示 ------------------- */
         #ui-layer {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-family: 'Arial', sans-serif;
-            font-weight: bold;
+            top: 20px; left: 20px;
+            color: white; font-family: sans-serif; font-weight: bold;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            font-size: 20px;
-            pointer-events: none;
-            z-index: 10;
+            font-size: 22px; pointer-events: none; z-index: 10;
+            line-height: 1.8;
         }
-        #ui-layer div { margin-bottom: 10px; background: rgba(0,0,0,0.4); padding: 5px 15px; border-radius: 8px; }
+        #ui-layer div { background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 8px; margin-bottom: 5px; }
 
-        /* 摇杆容器 - 左下角 */
+        /* ------------------- 摇杆 (左下) ------------------- */
         #joystick-zone {
-            position: absolute;
-            bottom: 50px;
-            left: 50px;
-            width: 140px;
-            height: 140px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            border: 3px solid rgba(255, 255, 255, 0.4);
-            z-index: 20;
-            touch-action: none;
+            position: absolute; bottom: 40px; left: 40px;
+            width: 140px; height: 140px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255,255,255,0.4); z-index: 20; touch-action: none;
         }
-        /* 摇杆推杆 */
         #joystick-thumb {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 60px;
-            height: 60px;
-            margin-top: -30px; /* 居中 */
-            margin-left: -30px; /* 居中 */
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.9);
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            pointer-events: none;
-            transition: none; /* 手感好，不要过渡动画 */
+            position: absolute; top: 50%; left: 50%;
+            width: 50px; height: 50px; margin-top: -25px; margin-left: -25px;
+            border-radius: 50%; background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5); pointer-events: none;
         }
 
-        /* 技能按钮 - 右下角 */
-        #skill-btn {
-            position: absolute;
-            bottom: 60px;
-            right: 60px;
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            background: rgba(255, 100, 100, 0.8);
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            border: 4px solid white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 20;
-            touch-action: none;
-            box-shadow: 0 0 20px rgba(255,0,0,0.3);
+        /* ------------------- 技能按钮 (右下) ------------------- */
+        #skills-container {
+            position: absolute; bottom: 40px; right: 40px;
+            display: flex; gap: 20px; z-index: 20;
         }
-        #skill-btn:active {
-            transform: scale(0.9);
-            background: rgba(255, 50, 50, 1);
+        .skill-btn {
+            width: 70px; height: 70px; border-radius: 50%; border: 3px solid #fff;
+            background-size: cover; background-position: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); touch-action: manipulation;
         }
+        .skill-btn:active { transform: scale(0.9); }
+
+        /* 技能一：刺剑 */
+        #skill1 { background-image: url('https://i.ibb.co/YFqsbFZf/mmexport1786960537016-removebg-preview-edit-226118925829553.png'); }
+        /* 技能二：旋转剑 */
+        #skill2 { background-image: url('https://i.ibb.co/spwFzjDw/mmexport1786960530109-removebg-preview-edit-226194311249326.png'); }
     </style>
 </head>
 <body>
@@ -99,301 +95,309 @@
     <!-- 游戏画布 -->
     <canvas id="gameCanvas"></canvas>
 
+    <!-- 开始界面 -->
+    <div id="start-screen">
+        <button id="start-btn"></button>
+    </div>
+
     <!-- UI 层 -->
     <div id="ui-layer">
-        <div>❤️ 血量: <span id="ui-hp">3</span></div>
+        <div>❤️ 血量: <span id="ui-hp">5</span></div>
         <div>⭐ 得分: <span id="ui-score">0</span></div>
     </div>
 
     <!-- 摇杆 -->
-    <div id="joystick-zone">
-        <div id="joystick-thumb"></div>
-    </div>
+    <div id="joystick-zone"><div id="joystick-thumb"></div></div>
 
-    <!-- 技能按钮 -->
-    <div id="skill-btn">⚔️攻击</div>
+    <!-- 技能 -->
+    <div id="skills-container">
+        <div id="skill1" class="skill-btn"></div>
+        <div id="skill2" class="skill-btn"></div>
+    </div>
 
     <script>
         // ==========================================
-        // 1. 初始化 Canvas 与 变量
+        // 1. 图片预加载 (防止黑屏)
+        // ==========================================
+        const images = {
+            bg: 'https://i.ibb.co/m5wzzRqw/mmexport1787145362768.jpg',
+            knight: 'https://i.ibb.co/HDxjRFGS/mmexport1787146227623-removebg-preview.png',
+            enemy: 'https://i.ibb.co/LdcsWRF6/Screenshot-20260819-212638-edit-35046427395164-removebg-preview.png',
+            sword: 'https://i.ibb.co/5xrrKJMS/mmexport1787145389326-removebg-preview-edit-34506150608978.png'
+        };
+
+        function loadImages() {
+            const promises = [];
+            for (let [key, url] of Object.entries(images)) {
+                const img = new Image();
+                img.crossOrigin = "Anonymous"; // 解决外链图片跨域问题
+                img.src = url;
+                promises.push(new Promise(resolve => img.onload = () => resolve({key, img})));
+            }
+            return Promise.all(promises).then(results => {
+                let loaded = {};
+                results.forEach(r => loaded[r.key] = r.img);
+                return loaded;
+            });
+        }
+
+        // ==========================================
+        // 2. 游戏核心变量
         // ==========================================
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // 强制自适应屏幕分辨率
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        let resized = false;
+        function resizeCanvas() { 
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight; 
+            resized = true; 
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // 游戏数据
-        let gameOver = false;
-        let hp = 3;
-        let score = 0;
-        let broadcastQueue = [];
-        
-        // 玩家
-        const player = { x: canvas.width/2, y: canvas.height/2, w: 30, h: 30, speed: 5 };
-        // 摇杆输入向量 (-1 ~ 1)
+        let gameRunning = false, gameOver = false;
+        let hp = 5, score = 0;
         let joyX = 0, joyY = 0;
-        
-        // 敌人
+        let player = { x: canvas.width/2 - 35, y: canvas.height/2 - 35, w: 70, h: 70, speed: 5 };
         let enemies = [];
         let enemySpawnTimer = 0;
-        
-        // 攻击特效
-        let attackActive = false;
-        let attackDuration = 150; // 毫秒
-        let attackTimer = 0;
+        let playerDirection = { x: 1, y: 0 }; // 当前朝向（默认向右）
+        let swingData = null; // 技能动画状态
 
         // ==========================================
-        // 2. UI 更新与广播机制
+        // 3. UI 与开始逻辑
         // ==========================================
+        const startScreen = document.getElementById('start-screen');
+        const startBtn = document.getElementById('start-btn');
+        
+        startBtn.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            startGame();
+        });
+        startBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startScreen.style.display = 'none';
+            startGame();
+        });
+
+        function startGame() {
+            gameRunning = true; gameOver = false; hp = 5; score = 0; enemies = [];
+            player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35;
+            updateUI();
+        }
+
         function updateUI() {
             document.getElementById('ui-hp').innerText = hp;
             document.getElementById('ui-score').innerText = score;
         }
 
-        // 简易的消息系统（模仿 Scratch 的广播）
-        function broadcast(msg) {
-            broadcastQueue.push(msg);
-        }
-        
-        function processBroadcasts() {
-            while(broadcastQueue.length > 0) {
-                let msg = broadcastQueue.shift();
-                console.log("收到广播:", msg);
-                
-                // 处理各种广播
-                if (msg === "死亡二") {
-                    gameOver = true;
-                    alert("勇敢的骑士倒下了！最终得分: " + score);
-                    // 重置游戏
-                    hp = 3;
-                    score = 0;
-                    enemies = [];
-                    player.x = canvas.width / 2;
-                    player.y = canvas.height / 2;
-                    gameOver = false;
-                    updateUI();
-                } else if (msg === "消息二") {
-                    // 图5逻辑：收到消息二，得分+1 (暂时不用，我们直接碰撞加分)
-                }
-            }
-        }
+        // ==========================================
+        // 4. 摇杆控制 (触控/鼠标)
+        // ==========================================
+        const jZone = document.getElementById('joystick-zone');
+        const jThumb = document.getElementById('joystick-thumb');
+        const jRadius = 70;
 
-        // ==========================================
-        // 3. 摇杆控制逻辑 (支持触摸和鼠标)
-        // ==========================================
-        const joystickZone = document.getElementById('joystick-zone');
-        const joystickThumb = document.getElementById('joystick-thumb');
-        const joystickRadius = 70; // 摇杆最大移动半径 (140/2)
-        
-        function handleJoystick(e) {
+        function handleJoy(e) {
             e.preventDefault();
             let clientX, clientY;
-            if (e.touches) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-
-            const rect = joystickZone.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-
-            let deltaX = clientX - centerX;
-            let deltaY = clientY - centerY;
-            let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            // 限制摇杆在圆圈内
-            if (distance > joystickRadius) {
-                deltaX = (deltaX / distance) * joystickRadius;
-                deltaY = (deltaY / distance) * joystickRadius;
-                distance = joystickRadius;
-            }
-
-            // 移动摇杆 UI
-            joystickThumb.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-
-            // 计算输出向量 (-1 到 1)
-            if (distance > 5) { // 死区阈值
-                joyX = deltaX / joystickRadius;
-                joyY = deltaY / joystickRadius;
-            } else {
-                joyX = 0;
-                joyY = 0;
-            }
-        }
-
-        function releaseJoystick(e) {
-            e.preventDefault();
-            joyX = 0; joyY = 0;
-            joystickThumb.style.transform = `translate(0px, 0px)`;
-        }
-
-        // 监听事件
-        joystickZone.addEventListener('touchstart', handleJoystick);
-        window.addEventListener('touchmove', handleJoystick, {passive: false});
-        window.addEventListener('touchend', releaseJoystick);
-        // 兼容电脑鼠标调试
-        joystickZone.addEventListener('mousedown', handleJoystick);
-        window.addEventListener('mousemove', (e) => { if(e.buttons === 1) handleJoystick(e); });
-        window.addEventListener('mouseup', releaseJoystick);
-
-        // ==========================================
-        // 4. 技能按钮逻辑
-        // ==========================================
-        const skillBtn = document.getElementById('skill-btn');
-        
-        skillBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            triggerAttack();
-        });
-        skillBtn.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            triggerAttack();
-        });
-
-        function triggerAttack() {
-            if (gameOver) return;
-            attackActive = true;
-            attackTimer = Date.now();
-            broadcast("消息一"); // 图4，收到消息一触发特效（这里简化为产生攻击判定）
+            if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; } 
+            else { clientX = e.clientX; clientY = e.clientY; }
             
-            // 攻击判定：对摇杆方向或前方一定范围内的敌人造成伤害
-            let attackRange = 70;
-            let playerCenterX = player.x + player.w/2;
-            let playerCenterY = player.y + player.h/2;
+            const rect = jZone.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let dx = clientX - cx, dy = clientY - cy;
+            let dist = Math.hypot(dx, dy);
+            
+            if (dist > jRadius) { dx = (dx / dist) * jRadius; dy = (dy / dist) * jRadius; dist = jRadius; }
+            jThumb.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            if (dist > 8) { joyX = dx / jRadius; joyY = dy / jRadius; } 
+            else { joyX = 0; joyY = 0; }
+        }
+        function releaseJoy(e) { e.preventDefault(); joyX = 0; joyY = 0; jThumb.style.transform = `translate(0px, 0px)`; }
 
-            for (let i = enemies.length - 1; i >= 0; i--) {
-                let e = enemies[i];
-                let enemyCenterX = e.x + e.w/2;
-                let enemyCenterY = e.y + e.h/2;
-                let dist = Math.hypot(enemyCenterX - playerCenterX, enemyCenterY - playerCenterY);
-                
-                if (dist < attackRange) {
-                    // 消灭敌人
-                    enemies.splice(i, 1);
-                    score += 1;
-                    broadcast("消息二"); // 触发分数广播
+        jZone.addEventListener('touchstart', handleJoy);
+        window.addEventListener('touchmove', handleJoy, {passive: false});
+        window.addEventListener('touchend', releaseJoy);
+        jZone.addEventListener('mousedown', handleJoy);
+        window.addEventListener('mousemove', (e) => { if(e.buttons === 1) handleJoy(e); });
+        window.addEventListener('mouseup', releaseJoy);
+
+        // ==========================================
+        // 5. 技能系统 (刺剑 & 旋转剑)
+        // ==========================================
+        document.getElementById('skill1').addEventListener('touchstart', (e) => { e.preventDefault(); triggerSkill('thrust'); });
+        document.getElementById('skill1').addEventListener('mousedown', (e) => { e.preventDefault(); triggerSkill('thrust'); });
+        document.getElementById('skill2').addEventListener('touchstart', (e) => { e.preventDefault(); triggerSkill('spin'); });
+        document.getElementById('skill2').addEventListener('mousedown', (e) => { e.preventDefault(); triggerSkill('spin'); });
+
+        function triggerSkill(type) {
+            if (!gameRunning || gameOver) return;
+            if (swingData) return; // 上一个技能动作还没结束
+
+            let centerX = player.x + player.w / 2;
+            let centerY = player.y + player.h / 2;
+            let angle = Math.atan2(playerDirection.y, playerDirection.x); // 玩家当前朝向
+
+            if (type === 'thrust') {
+                // 刺剑技能：判定前方 100px 的扇形/直线区域
+                swingData = { type: 'thrust', startTime: Date.now(), duration: 150 };
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    let e = enemies[i];
+                    let eX = e.x + 25, eY = e.y + 25; // 敌人中心
+                    let dx = eX - centerX, dy = eY - centerY;
+                    let dist = Math.hypot(dx, dy);
+                    let eAngle = Math.atan2(dy, dx);
+                    // 扇形判定：距离 < 120px，角度差小于 45度
+                    if (dist < 120 && Math.abs(eAngle - angle) < 0.8) { // 0.8 rad ≈ 45度
+                        destroyEnemy(i);
+                    }
+                }
+            } else if (type === 'spin') {
+                // 旋转剑技能：判定周围 110px 的 360度范围
+                swingData = { type: 'spin', startTime: Date.now(), duration: 400 };
+                let attackCount = 0;
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    let e = enemies[i];
+                    let dist = Math.hypot(e.x + 25 - centerX, e.y + 25 - centerY);
+                    if (dist < 110) {
+                        destroyEnemy(i);
+                        attackCount++;
+                    }
                 }
             }
             updateUI();
         }
 
-        // ==========================================
-        // 5. 游戏循环 (更新与渲染)
-        // ==========================================
-        function spawnEnemy() {
-            let side = Math.floor(Math.random() * 4);
-            let x, y;
-            let margin = 50;
-            if (side === 0) { // 上
-                x = Math.random() * canvas.width; y = -margin;
-            } else if (side === 1) { // 下
-                x = Math.random() * canvas.width; y = canvas.height + margin;
-            } else if (side === 2) { // 左
-                x = -margin; y = Math.random() * canvas.height;
-            } else { // 右
-                x = canvas.width + margin; y = Math.random() * canvas.height;
-            }
-            enemies.push({ 
-                x: x, y: y, w: 30, h: 30, 
-                speed: 1.2 + Math.random() * 0.5 
-            });
+        function destroyEnemy(index) {
+            enemies.splice(index, 1);
+            score += 1; // 杀死一个敌人得一分
+            // 可在此处广播 "消息二"
         }
 
-        function gameUpdate() {
-            if (gameOver) return;
+        // ==========================================
+        // 6. 游戏循环 (更新与渲染)
+        // ==========================================
+        let imgAssets = null;
+        loadImages().then(loaded => {
+            imgAssets = loaded;
+            gameLoop(); // 图片加载完才开启循环（这样背景不会黑屏）
+        });
 
-            // 1. 移动玩家
+        function gameUpdate() {
+            if (!gameRunning || gameOver || !imgAssets) return;
+
+            // 6.1 更新玩家位置
             if (joyX !== 0 || joyY !== 0) {
                 player.x += joyX * player.speed;
                 player.y += joyY * player.speed;
+                if (Math.abs(joyX) > Math.abs(joyY)) playerDirection.x = joyX > 0 ? 1 : -1;
+                else playerDirection.y = joyY > 0 ? 1 : -1;
             }
-            // 限制玩家地图边界
+            // 边界限制
             player.x = Math.max(0, Math.min(player.x, canvas.width - player.w));
             player.y = Math.max(0, Math.min(player.y, canvas.height - player.h));
 
-            // 2. 敌人 AI (向玩家移动)
-            let playerCenterX = player.x + player.w/2;
-            let playerCenterY = player.y + player.h/2;
-            
-            for (let e of enemies) {
-                let dx = playerCenterX - (e.x + e.w/2);
-                let dy = playerCenterY - (e.y + e.h/2);
-                let dist = Math.hypot(dx, dy);
-                if (dist > 0) {
-                    e.x += (dx / dist) * e.speed;
-                    e.y += (dy / dist) * e.speed;
-                }
+            // 6.2 更新技能状态
+            if (swingData) {
+                if (Date.now() - swingData.startTime > swingData.duration) swingData = null;
             }
 
-            // 3. 碰撞检测 (玩家 vs 敌人)
+            // 6.3 生成与更新敌人
+            enemySpawnTimer++;
+            if (enemySpawnTimer % 30 === 0 && enemies.length < 10) {
+                let side = Math.floor(Math.random() * 4);
+                let margin = 40;
+                let x = 0, y = 0;
+                if (side === 0) { x = Math.random() * canvas.width; y = -margin; }
+                else if (side === 1) { x = Math.random() * canvas.width; y = canvas.height + margin; }
+                else if (side === 2) { x = -margin; y = Math.random() * canvas.height; }
+                else { x = canvas.width + margin; y = Math.random() * canvas.height; }
+                enemies.push({ x, y, w: 50, h: 50, speed: 1.5 });
+            }
+
+            // 敌人追踪玩家
+            for (let e of enemies) {
+                let dx = player.x + player.w/2 - (e.x + e.w/2);
+                let dy = player.y + player.h/2 - (e.y + e.h/2);
+                let dist = Math.hypot(dx, dy);
+                if (dist > 0) { e.x += (dx/dist) * e.speed; e.y += (dy/dist) * e.speed; }
+            }
+
+            // 6.4 碰撞与扣血
             for (let i = enemies.length - 1; i >= 0; i--) {
                 let e = enemies[i];
                 if (player.x < e.x + e.w && player.x + player.w > e.x &&
                     player.y < e.y + e.h && player.y + player.h > e.y) {
-                    // 扣血，移除敌人
-                    hp -= 1;
+                    hp -= 1; 
                     enemies.splice(i, 1);
                     if (hp <= 0) {
-                        hp = 0;
-                        broadcast("死亡二");
+                        hp = 0; gameOver = true; updateUI();
+                        setTimeout(() => { 
+                            alert(`骑士倒下！最终得分：${score}`);
+                            // 相当于触发了广播 "死亡二"，在这里复位：
+                            hp = 5; score = 0; enemies = []; gameOver = false; 
+                            player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35;
+                            updateUI();
+                        }, 200);
                     }
                     updateUI();
                 }
             }
-
-            // 4. 处理碰撞广播
-            processBroadcasts();
-
-            // 5. 敌人生成
-            enemySpawnTimer++;
-            // 最多10个敌人，避免太多
-            if (enemySpawnTimer % 45 === 0 && enemies.length < 8) {
-                spawnEnemy();
-            }
-
-            // 6. 攻击特效消失
-            if (attackActive && Date.now() - attackTimer > attackDuration) {
-                attackActive = false;
-            }
         }
 
         function gameRender() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!imgAssets) return; // 图片未加载完不渲染
+            
+            // 绘制背景
+            let w = canvas.width, h = canvas.height;
+            ctx.drawImage(imgAssets.bg, 0, 0, w, h);
 
-            // 绘制沙漠地面
-            ctx.fillStyle = '#c49a6c';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // 绘制敌人
+            for (let e of enemies) { ctx.drawImage(imgAssets.enemy, e.x, e.y, e.w, e.h); }
 
-            // 绘制敌人 (红色方块/圆形)
-            ctx.fillStyle = '#ff3333';
-            for (let e of enemies) {
-                ctx.beginPath();
-                ctx.arc(e.x + e.w/2, e.y + e.h/2, e.w/2, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            // 绘制骑士
+            let pCenterX = player.x + player.w/2;
+            let pCenterY = player.y + player.h/2;
+            ctx.save();
+            // 翻转骑士图片适应左右移动
+            let scaleX = playerDirection.x >= 0 ? 1 : -1;
+            ctx.translate(pCenterX, pCenterY);
+            ctx.scale(scaleX, 1);
+            ctx.drawImage(imgAssets.knight, -player.w/2, -player.h/2, player.w, player.h);
+            ctx.restore();
 
-            // 绘制玩家 (紫色骑士方块)
-            ctx.fillStyle = '#8a2be2';
-            ctx.fillRect(player.x, player.y, player.w, player.h);
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(player.x, player.y, player.w, player.h);
-
-            // 绘制攻击特效
-            if (attackActive) {
-                ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-                ctx.beginPath();
-                ctx.arc(player.x + player.w/2, player.y + player.h/2, 70, 0, Math.PI * 2);
-                ctx.fill();
+            // 绘制剑（根据技能状态）
+            if (swingData) {
+                ctx.save();
+                ctx.translate(pCenterX, pCenterY);
+                if (swingData.type === 'thrust') {
+                    // 刺剑：剑尖向前方刺出
+                    let angle = Math.atan2(playerDirection.y, playerDirection.x);
+                    ctx.rotate(angle);
+                    ctx.translate(40, 0); // 剑向前伸出去
+                    ctx.drawImage(imgAssets.sword, -10, -30, 60, 60);
+                } else if (swingData.type === 'spin') {
+                    // 旋转剑：绕圈
+                    let progress = (Date.now() - swingData.startTime) / swingData.duration;
+                    let angle = progress * 2 * Math.PI;
+                    ctx.rotate(angle);
+                    ctx.translate(30, 0);
+                    ctx.drawImage(imgAssets.sword, -20, -40, 80, 80);
+                }
+                ctx.restore();
+            } else {
+                // 默认跟身剑
+                ctx.save();
+                ctx.translate(pCenterX, pCenterY);
+                let angle = Math.atan2(playerDirection.y, playerDirection.x);
+                ctx.rotate(angle);
+                ctx.translate(15, 0); // 剑挂在身体右侧
+                ctx.drawImage(imgAssets.sword, -10, -25, 50, 50);
+                ctx.restore();
             }
         }
 
@@ -402,12 +406,6 @@
             gameRender();
             requestAnimationFrame(gameLoop);
         }
-
-        // ==========================================
-        // 6. 启动游戏
-        // ==========================================
-        updateUI();
-        gameLoop();
     </script>
 </body>
 </html>
