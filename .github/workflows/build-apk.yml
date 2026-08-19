@@ -1,0 +1,45 @@
+name: 一键构建安卓 APK
+
+on:
+  push:
+    branches: [ "main", "master" ]  # 当你推送到 main 分支时触发
+  workflow_dispatch:                # 也支持你手动在 GitHub 网页点按钮
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 拉取你的仓库代码 (包含你的 HTML 和 android 文件夹)
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 安装 JDK 17 (安卓必须的运行环境)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 3. 自动下载并配置 Gradle (完美绕开你的 gradlew 和 wrapper.jar!)
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # 4. 【关键】自动把 HTML 文件夹拷贝到安卓的 assets 目录里
+      # 这样你就不需要在本地把 HTML 文件夹移来移去了！
+      - name: Copy HTML to Android Assets
+        run: |
+          mkdir -p android/app/src/main/assets/HTML
+          cp -r HTML/* android/app/src/main/assets/HTML/
+
+      # 5. 开始编译调试版的 APK (直接使用 gradle 命令)
+      - name: Build Debug APK
+        run: |
+          cd android
+          gradle assembleDebug
+
+      # 6. 将生成的 APK 上传到 GitHub 的 "Actions" 页面供你下载
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: 骑士大冒险-安装包
+          path: android/app/build/outputs/apk/debug/app-debug.apk
