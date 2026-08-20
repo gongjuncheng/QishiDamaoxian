@@ -22,10 +22,10 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'  # AGP 8.0 必须用 Java 17
+          java-version: '17'  # AGP 必须用 Java 17
 
-      # ✅ 关键修复：runner 全局是 Gradle 9.7.0，Cordova Android 12 不兼容（cordova.gradle 用到 Gradle 9 已移除的 XmlParser）。
-      # 必须锁到 8.x —— 这里用 Cordova 12 自带 wrapper 的同款 8.0.1，与 AGP 8.0.0 完全兼容。
+      # ✅ 关键修复①：runner 全局是 Gradle 9.7.0，Cordova 12 的 wrapper 生成步骤用它跑会卡 XmlParser。
+      # 锁到 8.x 让该步骤用 8.0.1（实际编译走 Cordova 生成的 7.6 wrapper，两者都带 groovy-xml）。
       - name: Setup Gradle 8.x (override runner's Gradle 9)
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -34,15 +34,15 @@ jobs:
       - name: Install Cordova (pin 版本，避免拉到不兼容的新版)
         run: npm install -g cordova@12
 
-      - name: Ensure Android SDK env (sdkmanager 不在 PATH，无需调用；仅确认 ANDROID_HOME 就位)
+      # ✅ 关键修复②：runner 的 sdkmanager 不在 PATH，且缺 build-tools;33.0.2。
+      # 用官方 action 装好 cmdline-tools + sdkmanager 并接受许可，再把缺失的构建工具装上。
+      - name: Setup Android SDK (cmdline-tools + licenses)
+        uses: android-actions/setup-android@v3
+
+      - name: Install required build tools & platform
         run: |
-          if [ -d "/usr/local/lib/android/sdk" ]; then
-            echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
-            echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
-            echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-          else
-            echo "Android SDK not found at default path" && exit 1
-          fi
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-33" "build-tools;33.0.2"
 
       - name: Create Cordova project
         run: |
