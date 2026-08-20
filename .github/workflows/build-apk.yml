@@ -24,6 +24,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'  # AGP 8.0 必须用 Java 17
 
+      # ✅ 关键修复：runner 全局是 Gradle 9.7.0，Cordova Android 12 不兼容（cordova.gradle 用到 Gradle 9 已移除的 XmlParser）。
+      # 必须锁到 8.x —— 这里用 Cordova 12 自带 wrapper 的同款 8.0.1，与 AGP 8.0.0 完全兼容。
+      - name: Setup Gradle 8.x (override runner's Gradle 9)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.0.1'
+
       - name: Install Cordova (pin 版本，避免拉到不兼容的新版)
         run: npm install -g cordova@12
 
