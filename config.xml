@@ -8,15 +8,16 @@
     <name>骑士大冒险</name>
     <description>横屏动作小游戏</description>
     <author email="you@example.com" href="https://example.com">
-        你的名字
+        QiShi
     </author>
 
-    <content src="HTML/index.html" />
+    <!-- ✅ 关键修正：入口改为根目录 index.html -->
+    <content src="index.html" />
+
     <access origin="*" />
     <allow-intent href="http://*/*" />
     <allow-intent href="https://*/*" />
 
-    <!-- Android 横屏 -->
     <platform name="android">
         <preference name="Orientation" value="landscape" />
         <preference name="Fullscreen" value="true" />
