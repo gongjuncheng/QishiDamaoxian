@@ -16,22 +16,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-
-      # ✅ 强制使用 Gradle 8.9（关键修复）
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
+          node-version: 20   # ⚠️ 原版用 18；若 npm install -g cordova 拉到 Cordova 14，会要求 Node 20+ 直接报错
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '17'  # AGP 8.0 必须用 Java 17
 
-      - name: Install Cordova
-        run: npm install -g cordova
+      - name: Install Cordova (pin 版本，避免拉到不兼容的新版)
+        run: npm install -g cordova@12
+
+      - name: Accept Android SDK licenses & 确保编译依赖存在
+        run: |
+          # ubuntu-latest runner 已预装 Android SDK，但显式接受许可 + 确认平台/构建工具在位更稳
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-33" "build-tools;33.0.1"
 
       - name: Create Cordova project
         run: |
@@ -42,9 +42,7 @@ jobs:
 
       - name: Add Android platform
         working-directory: app
-        run: |
-          cordova platform add android@12.0.0
-          cordova plugin add cordova-plugin-whitelist
+        run: cordova platform add android@12.0.0
 
       - name: Build APK (debug)
         working-directory: app
