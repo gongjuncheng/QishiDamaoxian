@@ -111,7 +111,8 @@
         let enemies = [];
         let enemySpawnTimer = 0;
         let playerDirection = { x: 1, y: 0 };
-        let flyingSword = null; // 飞行中的剑
+        let flyingSword = null;
+        let spinState = null; // 用来存储旋转动画的状态 { startTime, duration }
 
         function updateUI() {
             document.getElementById('ui-hp').innerText = hp;
@@ -125,6 +126,7 @@
             document.getElementById('start-screen').style.display = 'none';
             gameRunning = true; gameOver = false; hp = 5; score = 0; enemies = [];
             player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35;
+            flyingSword = null; spinState = null;
             updateUI();
         }
 
@@ -157,16 +159,14 @@
         document.getElementById('skill2').addEventListener('touchstart', (e) => { e.preventDefault(); triggerSkill('spin'); });
         document.getElementById('skill2').addEventListener('mousedown', (e) => { e.preventDefault(); triggerSkill('spin'); });
 
-        // -------- 💡 重点修改了刺剑逻辑，下面是优化后的技能代码 --------
         function triggerSkill(type) {
             if (!gameRunning || gameOver) return;
-            if (flyingSword) return; // 剑还没回到身上时，禁止再次按技能
+            if (type === 'thrust' && flyingSword) return; // 剑在外面飞时，不能发射新剑
 
             if (type === 'thrust') {
                 let centerX = player.x + player.w / 2;
                 let centerY = player.y + player.h / 2;
                 
-                // 1. 寻找最近的敌人
                 let targetX = centerX + playerDirection.x * 300;
                 let targetY = centerY + playerDirection.y * 300;
                 let minDist = Infinity;
@@ -180,25 +180,32 @@
                 let dx = targetX - centerX;
                 let dy = targetY - centerY;
                 let dist = Math.hypot(dx, dy);
-                let speed = 10;
-                if (dist < 1) { dx = playerDirection.x; dy = playerDirection.y; } // 防止没怪时卡死
+                let speed = 12;
+                if (dist < 1) { dx = playerDirection.x; dy = playerDirection.y; }
 
-                // 2. 发射剑
                 flyingSword = {
                     x: centerX, y: centerY,
                     vx: (dx / dist) * speed, vy: (dy / dist) * speed,
-                    returning: false,
-                    speed: speed
+                    returning: false, speed: speed
                 };
             } else if (type === 'spin') {
-                // 旋转剑逻辑保持不变（瞬间360度清场）
+                // 判断附近敌人并造成伤害
                 let centerX = player.x + player.w / 2, centerY = player.y + player.h / 2;
+                let spinRadius = 170; // 增加了旋转剑的判定范围
+                let killCount = 0;
                 for (let i = enemies.length - 1; i >= 0; i--) {
                     let e = enemies[i];
                     let dist = Math.hypot(e.x + 25 - centerX, e.y + 25 - centerY);
-                    if (dist < 110) { enemies.splice(i, 1); score++; }
+                    if (dist < spinRadius) { 
+                        enemies.splice(i, 1); 
+                        killCount++;
+                    }
                 }
+                if(killCount > 0) score += killCount;
                 updateUI();
+
+                // 启动旋转动画 (不干扰飞剑)
+                spinState = { startTime: Date.now(), duration: 400 };
             }
         }
 
@@ -216,16 +223,14 @@
             player.x = Math.max(0, Math.min(player.x, canvas.width - player.w));
             player.y = Math.max(0, Math.min(player.y, canvas.height - player.h));
 
-            // 3. 飞剑移动逻辑（长距离追踪与折返）
+            // 更新飞剑运动
             if (flyingSword) {
                 flyingSword.x += flyingSword.vx;
                 flyingSword.y += flyingSword.vy;
 
-                // 剑的碰撞箱（变大了，更容易打中怪）
                 let fsx = flyingSword.x - 45;
                 let fsy = flyingSword.y - 25;
-                let fsw = 90;
-                let fsh = 50;
+                let fsw = 90, fsh = 60;
                 for (let i = enemies.length - 1; i >= 0; i--) {
                     let e = enemies[i];
                     if (fsx < e.x + e.w && fsx + fsw > e.x && fsy < e.y + e.h && fsy + fsh > e.y) {
@@ -233,19 +238,18 @@
                     }
                 }
 
-                // 碰到屏幕边界 -> 折返（变回飞向玩家）
                 if (!flyingSword.returning) {
-                    if (flyingSword.x < 0 || flyingSword.x > canvas.width || flyingSword.y < 0 || flyingSword.y > canvas.height) {
+                    if (flyingSword.x < -50 || flyingSword.x > canvas.width + 50 || 
+                        flyingSword.y < -50 || flyingSword.y > canvas.height + 50) {
                         flyingSword.returning = true;
                     }
                 }
 
-                // 折返中：飞向玩家，直到回到玩家身上
                 if (flyingSword.returning) {
                     let pcx = player.x + player.w/2, pcy = player.y + player.h/2;
                     let dx = pcx - flyingSword.x, dy = pcy - flyingSword.y;
                     let dist = Math.hypot(dx, dy);
-                    if (dist < 20) { flyingSword = null; } // 收剑
+                    if (dist < 20) { flyingSword = null; }
                     else {
                         flyingSword.vx = (dx / dist) * flyingSword.speed;
                         flyingSword.vy = (dy / dist) * flyingSword.speed;
@@ -253,7 +257,12 @@
                 }
             }
 
-            // 生成敌人及扣血逻辑（保持不变）
+            // 清理旋转动画状态（防止一直转）
+            if (spinState && Date.now() - spinState.startTime > spinState.duration) {
+                spinState = null;
+            }
+
+            // 更新敌人与扣血
             enemySpawnTimer++;
             if (enemySpawnTimer % 30 === 0 && enemies.length < 10) {
                 let side = Math.floor(Math.random() * 4), margin = 40;
@@ -278,6 +287,7 @@
                         setTimeout(() => { 
                             alert(`骑士倒下！得分：${score}`);
                             hp = 5; score = 0; enemies = []; gameOver = false; 
+                            flyingSword = null; spinState = null;
                             player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35; updateUI();
                         }, 200);
                     }
@@ -298,20 +308,42 @@
             ctx.drawImage(imgAssets.knight, -player.w/2, -player.h/2, player.w, player.h);
             ctx.restore();
 
-            // 绘制飞剑（拉长变大版）
-            if (flyingSword) {
+            const swordLen = 160;
+            const swordHeight = 80;
+
+            // 1. 优先绘制“旋转剑”
+            if (spinState) {
+                let progress = (Date.now() - spinState.startTime) / spinState.duration;
+                let angle = progress * 4 * Math.PI; // 旋转两圈，视觉上更帅
+                
+                // 扩散冲击波光效
+                ctx.beginPath();
+                ctx.arc(pX, pY, 170 * progress, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.3 * (1 - progress)) + ')';
+                ctx.fill();
+
+                // 旋转的剑
+                ctx.save();
+                ctx.translate(pX, pY);
+                ctx.rotate(angle);
+                ctx.drawImage(imgAssets.sword, -swordLen/2, -swordHeight/2, swordLen, swordHeight);
+                ctx.restore();
+
+            // 2. 其次绘制“飞剑”
+            } else if (flyingSword) {
                 ctx.save();
                 ctx.translate(flyingSword.x, flyingSword.y);
                 ctx.rotate(Math.atan2(flyingSword.vy, flyingSword.vx));
-                ctx.drawImage(imgAssets.sword, -60, -25, 120, 50); // 🚀 剑身拉长到120px！
+                ctx.drawImage(imgAssets.sword, -swordLen/2, -swordHeight/2, swordLen, swordHeight);
                 ctx.restore();
+
+            // 3. 最后绘制“挂在身上”的剑
             } else {
-                // 默认挂着、没有释放时的剑（也稍微加长了一点）
                 ctx.save();
                 ctx.translate(pX, pY);
                 ctx.rotate(Math.atan2(playerDirection.y, playerDirection.x));
-                ctx.translate(20, 0);
-                ctx.drawImage(imgAssets.sword, -30, -20, 80, 40); // 挂着时80px
+                ctx.translate(30, 0); // 偏移位置挂在身后侧
+                ctx.drawImage(imgAssets.sword, -swordLen/2, -swordHeight/2, swordLen, swordHeight);
                 ctx.restore();
             }
         }
