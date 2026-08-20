@@ -106,7 +106,7 @@
 
         let gameRunning = false, gameOver = false;
         let hp = 5, score = 0;
-        let gameTime = 0; // 记录游戏存活时间（帧数）
+        let gameTime = 0;
         let joyX = 0, joyY = 0;
         let player = { x: canvas.width/2 - 35, y: canvas.height/2 - 35, w: 70, h: 70, speed: 5 };
         let enemies = [];
@@ -114,6 +114,10 @@
         let playerDirection = { x: 1, y: 0 };
         let flyingSword = null;
         let spinState = null;
+
+        // 核心改动 1：限制旋转技能的最大时间（1.2 秒转完，后期相当于蜗牛转）
+        let spinDuration = 350;       // 初始极速旋转
+        const MAX_SPIN_DURATION = 1200; // 最慢底线
 
         function updateUI() {
             document.getElementById('ui-hp').innerText = hp;
@@ -130,6 +134,7 @@
             enemies = [];
             player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35;
             flyingSword = null; spinState = null;
+            spinDuration = 350; // 开局重置快速模式
             enemySpawnTimer = 0;
             updateUI();
         }
@@ -192,20 +197,13 @@
                     returning: false, speed: speed
                 };
             } else if (type === 'spin') {
-                let centerX = player.x + player.w / 2, centerY = player.y + player.h / 2;
-                let spinRadius = 170;
-                let killCount = 0;
-                for (let i = enemies.length - 1; i >= 0; i--) {
-                    let e = enemies[i];
-                    let dist = Math.hypot(e.x + 25 - centerX, e.y + 25 - centerY);
-                    if (dist < spinRadius) { 
-                        enemies.splice(i, 1); 
-                        killCount++;
-                    }
+                // 核心改动 2：释放旋转时，让下次转圈变慢 80 毫秒！
+                spinDuration += 80;
+                if (spinDuration > MAX_SPIN_DURATION) {
+                    spinDuration = MAX_SPIN_DURATION;
                 }
-                if(killCount > 0) score += killCount;
-                updateUI();
-                spinState = { startTime: Date.now(), duration: 400 };
+                spinState = { startTime: Date.now(), duration: spinDuration };
+                // （取消了大范围的 AOE 判定，改为纯剑刃触碰判定，在 gameUpdate 中实现）
             }
         }
 
@@ -215,7 +213,6 @@
         function gameUpdate() {
             if (!gameRunning || gameOver || !imgAssets) return;
 
-            // 玩家移动
             if (joyX !== 0 || joyY !== 0) {
                 player.x += joyX * player.speed; player.y += joyY * player.speed;
                 if (Math.abs(joyX) > Math.abs(joyY)) playerDirection.x = joyX > 0 ? 1 : -1;
@@ -224,11 +221,10 @@
             player.x = Math.max(0, Math.min(player.x, canvas.width - player.w));
             player.y = Math.max(0, Math.min(player.y, canvas.height - player.h));
 
-            // 飞剑运动
+            // 飞剑不变
             if (flyingSword) {
                 flyingSword.x += flyingSword.vx;
                 flyingSword.y += flyingSword.vy;
-
                 let fsx = flyingSword.x - 45, fsy = flyingSword.y - 25, fsw = 90, fsh = 60;
                 for (let i = enemies.length - 1; i >= 0; i--) {
                     let e = enemies[i];
@@ -236,14 +232,12 @@
                         enemies.splice(i, 1); score++; updateUI();
                     }
                 }
-
                 if (!flyingSword.returning) {
                     if (flyingSword.x < -50 || flyingSword.x > canvas.width + 50 || 
                         flyingSword.y < -50 || flyingSword.y > canvas.height + 50) {
                         flyingSword.returning = true;
                     }
                 }
-
                 if (flyingSword.returning) {
                     let pcx = player.x + player.w/2, pcy = player.y + player.h/2;
                     let dx = pcx - flyingSword.x, dy = pcy - flyingSword.y;
@@ -256,27 +250,42 @@
                 }
             }
 
-            if (spinState && Date.now() - spinState.startTime > spinState.duration) spinState = null;
+            // 核心改动 3：旋转剑“纯剑刃”物理碰撞检测
+            if (spinState) {
+                let pX = player.x + player.w/2, pY = player.y + player.h/2;
+                let progress = (Date.now() - spinState.startTime) / spinState.duration;
+                if (progress >= 1) { spinState = null; }
+                else {
+                    let angle = progress * 4 * Math.PI; // 转两圈
+                    // 遍历所有敌人
+                    for (let i = enemies.length - 1; i >= 0; i--) {
+                        let e = enemies[i];
+                        let eX = e.x + e.w/2, eY = e.y + e.h/2;
+                        let dx = eX - pX, dy = eY - pY;
 
-            // =================================================================
-            // 🟢 全新动态难度系统：分数+游戏时间，取消上限，成长极慢
-            // =================================================================
-            // 每帧增加游戏时间（约等于 60帧 = 1秒）
+                        // 🔥 局部坐标转换：把怪物的世界坐标转换到剑的坐标系！
+                        // 剑在局部坐标中指向 X 轴正方向（0度）
+                        let localX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+                        let localY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+
+                        // 标准：剑长 160，剑宽 70
+                        // 只有当怪物在局部坐标下，落入剑的矩形范围内（剑刃里），才算击杀！
+                        if (localX > 20 && localX < 160 && Math.abs(localY) < 35) {
+                            enemies.splice(i, 1);
+                            score++;
+                            updateUI();
+                        }
+                    }
+                }
+            }
+
+            // 动态怪物系统（怪物越来越快，数量越来越多）
             gameTime++;
-
-            // 1. 怪物速度：初始1.5，每得 25 分增加 0.3，每 45秒(2700帧) 增加 0.3，无上限
             let currentSpeed = 1.5 + Math.floor(score / 25) * 0.3 + Math.floor(gameTime / 2700) * 0.3;
-
-            // 2. 场上最多同时存在的怪物数量：初始10，每得 30 分增加 1，每 30秒(1800帧) 增加 1，无上限
             let maxEnemies = 10 + Math.floor(score / 30) * 1 + Math.floor(gameTime / 1800) * 1;
-
-            // 3. 生成频率（数字越小生成越快）：初始30帧生一个，每得 30 分减 1 帧，每 30秒(1800帧) 减 1 帧。
-            // ⚠️ 友情提示：虽然没设上限，但我加了个最低 2 帧的限制，否则会瞬间刷出上百个怪导致手机卡死崩掉。
             let spawnRate = 30 - Math.floor(score / 30) * 1 - Math.floor(gameTime / 1800) * 1;
-            if (spawnRate < 2) spawnRate = 2; 
-            // =================================================================
+            if (spawnRate < 2) spawnRate = 2;
 
-            // 应用动态参数生成怪物
             enemySpawnTimer++;
             if (enemySpawnTimer % spawnRate === 0 && enemies.length < maxEnemies) {
                 let side = Math.floor(Math.random() * 4), margin = 40;
@@ -294,7 +303,6 @@
                 if (dist > 0) { e.x += (dx/dist) * e.speed; e.y += (dy/dist) * e.speed; }
             }
 
-            // 碰撞与扣血
             for (let i = enemies.length - 1; i >= 0; i--) {
                 let e = enemies[i];
                 if (player.x < e.x + e.w && player.x + player.w > e.x && player.y < e.y + e.h && player.y + player.h > e.y) {
@@ -305,6 +313,7 @@
                             alert(`骑士倒下！最终得分：${score}`);
                             hp = 5; score = 0; gameTime = 0; enemies = []; gameOver = false; 
                             flyingSword = null; spinState = null;
+                            spinDuration = 350; 
                             player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35; updateUI();
                         }, 200);
                     }
@@ -330,10 +339,8 @@
             if (spinState) {
                 let progress = (Date.now() - spinState.startTime) / spinState.duration;
                 let angle = progress * 4 * Math.PI;
-                ctx.beginPath();
-                ctx.arc(pX, pY, 170 * progress, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.3 * (1 - progress)) + ')';
-                ctx.fill();
+                
+                // 剑本身画出来
                 ctx.save();
                 ctx.translate(pX, pY);
                 ctx.rotate(angle);
