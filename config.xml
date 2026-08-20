@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget
+    id="com.example.knightadventure"
+    version="1.0.0"
+    xmlns="http://www.w3.org/ns/widgets"
+    xmlns:cdv="http://cordova.apache.org/ns/1.0">
+
+    <name>骑士大冒险</name>
+    <description>横屏动作小游戏</description>
+    <author email="you@example.com" href="https://example.com">
+        你的名字
+    </author>
+
+    <content src="HTML/index.html" />
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+
+    <!-- Android 横屏 -->
+    <platform name="android">
+        <preference name="Orientation" value="landscape" />
+        <preference name="Fullscreen" value="true" />
+        <preference name="AndroidMinSdkVersion" value="21" />
+        <preference name="AndroidTargetSdkVersion" value="33" />
+    </platform>
+</widget>
