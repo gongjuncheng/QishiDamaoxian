@@ -13,10 +13,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ✅ Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
+
+      # ✅ 关键！Android Gradle 必须要用 JDK 17
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Install Cordova
         run: npm install -g cordova
@@ -24,19 +32,23 @@ jobs:
       - name: Create Cordova project
         run: |
           cordova create app com.qishi.knightadventure KnightAdventure
-          # ✅ 把 HTML 目录内容直接拷贝到 www 根目录
+          # 清空默认 www，避免和你的文件冲突
+          rm -rf app/www/*
+          # 拷贝你的游戏文件
           cp -r HTML/* app/www/
+          # 覆盖 config.xml
           cp config.xml app/
 
-      - name: Add Android platform and plugins
+      - name: Add Android platform
         working-directory: app
         run: |
-          cordova platform add android
+          # ✅ 锁定 android@12.0.0，最稳的版本，不会拉到不兼容的最新版
+          cordova platform add android@12.0.0
           cordova plugin add cordova-plugin-whitelist
 
       - name: Build APK (debug)
         working-directory: app
-        run: cordova build android
+        run: cordova build android --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
