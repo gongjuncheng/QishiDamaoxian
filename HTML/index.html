@@ -106,13 +106,14 @@
 
         let gameRunning = false, gameOver = false;
         let hp = 5, score = 0;
+        let gameTime = 0; // 记录游戏存活时间（帧数）
         let joyX = 0, joyY = 0;
         let player = { x: canvas.width/2 - 35, y: canvas.height/2 - 35, w: 70, h: 70, speed: 5 };
         let enemies = [];
         let enemySpawnTimer = 0;
         let playerDirection = { x: 1, y: 0 };
         let flyingSword = null;
-        let spinState = null; // 用来存储旋转动画的状态 { startTime, duration }
+        let spinState = null;
 
         function updateUI() {
             document.getElementById('ui-hp').innerText = hp;
@@ -124,9 +125,12 @@
 
         function startGame() {
             document.getElementById('start-screen').style.display = 'none';
-            gameRunning = true; gameOver = false; hp = 5; score = 0; enemies = [];
+            gameRunning = true; gameOver = false; 
+            hp = 5; score = 0; gameTime = 0;
+            enemies = [];
             player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35;
             flyingSword = null; spinState = null;
+            enemySpawnTimer = 0;
             updateUI();
         }
 
@@ -161,7 +165,7 @@
 
         function triggerSkill(type) {
             if (!gameRunning || gameOver) return;
-            if (type === 'thrust' && flyingSword) return; // 剑在外面飞时，不能发射新剑
+            if (type === 'thrust' && flyingSword) return;
 
             if (type === 'thrust') {
                 let centerX = player.x + player.w / 2;
@@ -177,8 +181,7 @@
                     if (dist < minDist) { minDist = dist; targetX = eX; targetY = eY; }
                 }
 
-                let dx = targetX - centerX;
-                let dy = targetY - centerY;
+                let dx = targetX - centerX, dy = targetY - centerY;
                 let dist = Math.hypot(dx, dy);
                 let speed = 12;
                 if (dist < 1) { dx = playerDirection.x; dy = playerDirection.y; }
@@ -189,9 +192,8 @@
                     returning: false, speed: speed
                 };
             } else if (type === 'spin') {
-                // 判断附近敌人并造成伤害
                 let centerX = player.x + player.w / 2, centerY = player.y + player.h / 2;
-                let spinRadius = 170; // 增加了旋转剑的判定范围
+                let spinRadius = 170;
                 let killCount = 0;
                 for (let i = enemies.length - 1; i >= 0; i--) {
                     let e = enemies[i];
@@ -203,8 +205,6 @@
                 }
                 if(killCount > 0) score += killCount;
                 updateUI();
-
-                // 启动旋转动画 (不干扰飞剑)
                 spinState = { startTime: Date.now(), duration: 400 };
             }
         }
@@ -215,6 +215,7 @@
         function gameUpdate() {
             if (!gameRunning || gameOver || !imgAssets) return;
 
+            // 玩家移动
             if (joyX !== 0 || joyY !== 0) {
                 player.x += joyX * player.speed; player.y += joyY * player.speed;
                 if (Math.abs(joyX) > Math.abs(joyY)) playerDirection.x = joyX > 0 ? 1 : -1;
@@ -223,14 +224,12 @@
             player.x = Math.max(0, Math.min(player.x, canvas.width - player.w));
             player.y = Math.max(0, Math.min(player.y, canvas.height - player.h));
 
-            // 更新飞剑运动
+            // 飞剑运动
             if (flyingSword) {
                 flyingSword.x += flyingSword.vx;
                 flyingSword.y += flyingSword.vy;
 
-                let fsx = flyingSword.x - 45;
-                let fsy = flyingSword.y - 25;
-                let fsw = 90, fsh = 60;
+                let fsx = flyingSword.x - 45, fsy = flyingSword.y - 25, fsw = 90, fsh = 60;
                 for (let i = enemies.length - 1; i >= 0; i--) {
                     let e = enemies[i];
                     if (fsx < e.x + e.w && fsx + fsw > e.x && fsy < e.y + e.h && fsy + fsh > e.y) {
@@ -257,27 +256,45 @@
                 }
             }
 
-            // 清理旋转动画状态（防止一直转）
-            if (spinState && Date.now() - spinState.startTime > spinState.duration) {
-                spinState = null;
-            }
+            if (spinState && Date.now() - spinState.startTime > spinState.duration) spinState = null;
 
-            // 更新敌人与扣血
+            // =================================================================
+            // 🟢 全新动态难度系统：分数+游戏时间，取消上限，成长极慢
+            // =================================================================
+            // 每帧增加游戏时间（约等于 60帧 = 1秒）
+            gameTime++;
+
+            // 1. 怪物速度：初始1.5，每得 25 分增加 0.3，每 45秒(2700帧) 增加 0.3，无上限
+            let currentSpeed = 1.5 + Math.floor(score / 25) * 0.3 + Math.floor(gameTime / 2700) * 0.3;
+
+            // 2. 场上最多同时存在的怪物数量：初始10，每得 30 分增加 1，每 30秒(1800帧) 增加 1，无上限
+            let maxEnemies = 10 + Math.floor(score / 30) * 1 + Math.floor(gameTime / 1800) * 1;
+
+            // 3. 生成频率（数字越小生成越快）：初始30帧生一个，每得 30 分减 1 帧，每 30秒(1800帧) 减 1 帧。
+            // ⚠️ 友情提示：虽然没设上限，但我加了个最低 2 帧的限制，否则会瞬间刷出上百个怪导致手机卡死崩掉。
+            let spawnRate = 30 - Math.floor(score / 30) * 1 - Math.floor(gameTime / 1800) * 1;
+            if (spawnRate < 2) spawnRate = 2; 
+            // =================================================================
+
+            // 应用动态参数生成怪物
             enemySpawnTimer++;
-            if (enemySpawnTimer % 30 === 0 && enemies.length < 10) {
+            if (enemySpawnTimer % spawnRate === 0 && enemies.length < maxEnemies) {
                 let side = Math.floor(Math.random() * 4), margin = 40;
                 let x=0, y=0;
                 if (side === 0) { x = Math.random() * canvas.width; y = -margin; }
                 else if (side === 1) { x = Math.random() * canvas.width; y = canvas.height + margin; }
                 else if (side === 2) { x = -margin; y = Math.random() * canvas.height; }
                 else { x = canvas.width + margin; y = Math.random() * canvas.height; }
-                enemies.push({ x, y, w: 50, h: 50, speed: 1.5 });
+                enemies.push({ x, y, w: 50, h: 50, speed: currentSpeed });
             }
+
             for (let e of enemies) {
                 let dx = player.x + player.w/2 - (e.x + e.w/2), dy = player.y + player.h/2 - (e.y + e.h/2);
                 let dist = Math.hypot(dx, dy);
                 if (dist > 0) { e.x += (dx/dist) * e.speed; e.y += (dy/dist) * e.speed; }
             }
+
+            // 碰撞与扣血
             for (let i = enemies.length - 1; i >= 0; i--) {
                 let e = enemies[i];
                 if (player.x < e.x + e.w && player.x + player.w > e.x && player.y < e.y + e.h && player.y + player.h > e.y) {
@@ -285,8 +302,8 @@
                     if (hp <= 0) {
                         hp = 0; gameOver = true; updateUI();
                         setTimeout(() => { 
-                            alert(`骑士倒下！得分：${score}`);
-                            hp = 5; score = 0; enemies = []; gameOver = false; 
+                            alert(`骑士倒下！最终得分：${score}`);
+                            hp = 5; score = 0; gameTime = 0; enemies = []; gameOver = false; 
                             flyingSword = null; spinState = null;
                             player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35; updateUI();
                         }, 200);
@@ -308,41 +325,31 @@
             ctx.drawImage(imgAssets.knight, -player.w/2, -player.h/2, player.w, player.h);
             ctx.restore();
 
-            const swordLen = 160;
-            const swordHeight = 80;
+            const swordLen = 160, swordHeight = 80;
 
-            // 1. 优先绘制“旋转剑”
             if (spinState) {
                 let progress = (Date.now() - spinState.startTime) / spinState.duration;
-                let angle = progress * 4 * Math.PI; // 旋转两圈，视觉上更帅
-                
-                // 扩散冲击波光效
+                let angle = progress * 4 * Math.PI;
                 ctx.beginPath();
                 ctx.arc(pX, pY, 170 * progress, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.3 * (1 - progress)) + ')';
                 ctx.fill();
-
-                // 旋转的剑
                 ctx.save();
                 ctx.translate(pX, pY);
                 ctx.rotate(angle);
                 ctx.drawImage(imgAssets.sword, -swordLen/2, -swordHeight/2, swordLen, swordHeight);
                 ctx.restore();
-
-            // 2. 其次绘制“飞剑”
             } else if (flyingSword) {
                 ctx.save();
                 ctx.translate(flyingSword.x, flyingSword.y);
                 ctx.rotate(Math.atan2(flyingSword.vy, flyingSword.vx));
                 ctx.drawImage(imgAssets.sword, -swordLen/2, -swordHeight/2, swordLen, swordHeight);
                 ctx.restore();
-
-            // 3. 最后绘制“挂在身上”的剑
             } else {
                 ctx.save();
                 ctx.translate(pX, pY);
                 ctx.rotate(Math.atan2(playerDirection.y, playerDirection.x));
-                ctx.translate(30, 0); // 偏移位置挂在身后侧
+                ctx.translate(30, 0);
                 ctx.drawImage(imgAssets.sword, -swordLen/2, -swordHeight/2, swordLen, swordHeight);
                 ctx.restore();
             }
