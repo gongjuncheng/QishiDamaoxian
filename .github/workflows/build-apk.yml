@@ -23,13 +23,16 @@ jobs:
 
       - name: Create Cordova project
         run: |
-          cordova create app com.example.knightadventure KnightAdventure
+          cordova create app com.qishi.knightadventure KnightAdventure
+          # ✅ 把 HTML 目录内容直接拷贝到 www 根目录
           cp -r HTML/* app/www/
           cp config.xml app/
 
-      - name: Add Android platform
+      - name: Add Android platform and plugins
         working-directory: app
-        run: cordova platform add android
+        run: |
+          cordova platform add android
+          cordova plugin add cordova-plugin-whitelist
 
       - name: Build APK (debug)
         working-directory: app
