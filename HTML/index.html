@@ -7,10 +7,12 @@
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; 
             overflow: hidden; background-color: #000;
             user-select: none; -webkit-user-select: none; touch-action: none;
         }
-        #gameCanvas { display: block; width: 100vw; height: 100vh; }
+
+        #gameCanvas { display: block; flex: 1; width: 100%; }
 
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -24,6 +26,33 @@
             border: none; outline: none; cursor: pointer; touch-action: manipulation;
         }
         #start-btn:active { transform: scale(0.9); }
+
+        /* GAME OVER 弹层 */
+        #game-over-screen {
+            display: none; /* 初始隐藏 */
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 150;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        #game-over-title {
+            color: #ff3333; font-size: 60px; font-weight: 900; font-family: sans-serif;
+            text-shadow: 3px 3px 6px #000;
+            margin-bottom: 20px; letter-spacing: 5px;
+        }
+        #retry-btn {
+            width: 160px; height: 60px; background: #4CAF50; color: white;
+            border: 3px solid white; border-radius: 10px; font-size: 24px;
+            font-weight: bold; cursor: pointer; touch-action: manipulation;
+            margin-bottom: 20px;
+        }
+        #retry-btn:active { transform: scale(0.9); background: #45a049; }
+        
+        /* 广告容器 */
+        #game-over-ad-container {
+            width: 320px; height: 50px; 
+            display: flex; justify-content: center; align-items: center;
+            margin-top: 10px;
+        }
 
         #ui-layer {
             position: absolute; top: 20px; left: 20px;
@@ -65,6 +94,26 @@
 
     <div id="start-screen"><button id="start-btn"></button></div>
 
+    <!-- GAME OVER 界面 -->
+    <div id="game-over-screen" style="display: none;">
+        <div id="game-over-title">GAME OVER</div>
+        <button id="retry-btn">再来一局</button>
+        
+        <!-- 在按钮下方放置广告 -->
+        <div id="game-over-ad-container">
+            <script>
+                atOptions = {
+                    'key' : 'b28cf9191a966f9db38456003953420b',
+                    'format' : 'iframe',
+                    'height' : 50,
+                    'width' : 320,
+                    'params' : {}
+                };
+            </script>
+            <script src="https://www.highrevenueformat.com/b28cf9191a966f9db38456003953420b/invoke.js"></script>
+        </div>
+    </div>
+
     <div id="ui-layer">
         <div>❤️ 血量: <span id="ui-hp">5</span></div>
         <div>⭐ 得分: <span id="ui-score">0</span></div>
@@ -80,7 +129,10 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        function resizeCanvas() { 
+            canvas.width = canvas.parentElement.clientWidth; 
+            canvas.height = canvas.parentElement.clientHeight;
+        }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
@@ -126,8 +178,27 @@
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('start-btn').addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); });
 
+        // 让“再来一局”按钮绑定重开逻辑
+        const retryBtn = document.getElementById('retry-btn');
+        retryBtn.addEventListener('click', retryGame);
+        retryBtn.addEventListener('touchstart', (e) => { e.preventDefault(); retryGame(); });
+
         function startGame() {
             document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'none';
+            gameRunning = true; gameOver = false; 
+            hp = 5; score = 0; gameTime = 0;
+            enemies = [];
+            player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35;
+            flyingSword = null; spinState = null;
+            spinDuration = 350;
+            enemySpawnTimer = 0;
+            updateUI();
+        }
+
+        // 重开函数
+        function retryGame() {
+            document.getElementById('game-over-screen').style.display = 'none';
             gameRunning = true; gameOver = false; 
             hp = 5; score = 0; gameTime = 0;
             enemies = [];
@@ -267,10 +338,8 @@
                 }
             }
 
-            // =============== 🟢 核心改动：初始速度从 1.5 砍半成 0.75 ===============
             gameTime++;
             let currentSpeed = 0.75 + Math.floor(score / 25) * 0.3 + Math.floor(gameTime / 2700) * 0.3;
-            // =====================================================================
 
             let maxEnemies = 10 + Math.floor(score / 30) * 1 + Math.floor(gameTime / 1800) * 1;
             let spawnRate = 30 - Math.floor(score / 30) * 1 - Math.floor(gameTime / 1800) * 1;
@@ -298,14 +367,14 @@
                 if (player.x < e.x + e.w && player.x + player.w > e.x && player.y < e.y + e.h && player.y + player.h > e.y) {
                     hp -= 1; enemies.splice(i, 1); updateUI();
                     if (hp <= 0) {
-                        hp = 0; gameOver = true; updateUI();
-                        setTimeout(() => { 
-                            alert(`骑士倒下！最终得分：${score}`);
-                            hp = 5; score = 0; gameTime = 0; enemies = []; gameOver = false; 
-                            flyingSword = null; spinState = null;
-                            spinDuration = 350; 
-                            player.x = canvas.width/2 - 35; player.y = canvas.height/2 - 35; updateUI();
-                        }, 200);
+                        hp = 0;
+                        gameOver = true; 
+                        updateUI();
+
+                        // 移除 alert，改为显示 GAME OVER 界面（用来放广告和重开按钮）
+                        document.getElementById('game-over-screen').style.display = 'flex';
+                        // 直接让游戏循环停止或冻结，靠 gameOver=true 来阻止后续更新
+                        return; // 跳出更新，直接进入渲染
                     }
                 }
             }
