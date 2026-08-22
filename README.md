@@ -126,7 +126,7 @@ cordova build android          # 产物：platforms/android/app/build/outputs/ap
 
 ## 📄 许可证
 
-[MIT](LICENSE) © 2026 gongjuncheng
+[MIT](LICENSE) © 2026 zhangqizheng
 
 ## 🙏 资源说明
 
